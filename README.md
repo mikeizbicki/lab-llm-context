@@ -1,13 +1,13 @@
 # Lab: Managing LLM Context
 
+<img align=right src=img/meme.webp width=300px />
+
 This lab will teach you how to "manage your context window" using AI.
 You will learn:
 1. how LLM APIs work under the hood,
 2. how almost all AI agents (including `dic`, `llm`, copilot, VSCode plugins, etc) use sqlite3 to store conversation histories, and
 3. how to manage these session histories to be more efficient.
 The lab focuses on using `dic`, but the techniques generalize to any agent you might use in the future.
-
-<img src=img/meme.webp width=300px />
 
 ## Setup
 
@@ -28,7 +28,6 @@ and set the temperature to be 0
 ```
 $ export GROQ_API_KEY=...
 $ export DIC_MODEL=groq+qwen
-$ export DIC_OPTION='["temperature=0"]'
 ```
 
 ## Part 1: OpenAI API protocol
