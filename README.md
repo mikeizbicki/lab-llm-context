@@ -386,8 +386,13 @@ Continue this conversation for a few more rounds if needed so that groq is refus
 Recall that `committe` is the coding agent you built in the previous lab.
 If you would like, you can get a more robust version of the script by running the command
 ```
-$ source <(curl -s https://raw.githubusercontent.com/mikeizbicki/dic/refs/heads/master/scripts/committe.sh)
+$ eval "$(dic --init)"
 ```
+> **NOTE:**
+> The command `dic --init` outputs a shell script that should be run on the command line and includes a number of useful aliases and functions, like `committe`.
+> The `eval` command runs all of the lines in the script.
+> `eval`ing an argument is the equivalent of `source`ing a file.
+
 This more robust version uses a more robust version of `git apply` (called `git-apply-fuzzy`) that can still successfully apply the patch file even if the LLM has made lots of errors in the diff.
 (Many students in the previous lab observed `committe` being a bit flaky due to these errors.)
 It also has additional sanity checks like refusing to run if the git repo is not clean.
