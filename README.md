@@ -19,8 +19,15 @@ and so you can't see the underlying API requests in `llm` that you can in `dic`.
 Even if you already have it installed,
 you should get the latest version by running
 ```
-$ pip3 install git+https://github.com/mikeizbicki/dic --upgrade
+$ pip3 install git+https://github.com/mikeizbicki/dic
 ```
+> **NOTE:**
+> If you already have `dic` installed,
+> you will have to uninstall it first with the command
+> ```
+> $ pip3 uninstall dic
+> ```
+> Before the command above will install the latest version.
 
 You should also ensure that your groq API key is in the environment,
 set the default model to be groq with qwen,
@@ -92,7 +99,7 @@ EOF
 $ curl -sS https://api.groq.com/openai/v1/chat/completions \
     -H "Authorization: Bearer $GROQ_API_KEY" \
     -H 'Content-Type: application/json' \
-    -d @r2.json | jq `.choices[0].message.content`
+    -d @r2.json | jq '.choices[0].message.content'
 ```
 Notice that the model cannot answer the question.
 
@@ -132,7 +139,7 @@ $ cat > r3.json <<EOF
   "messages": [
     {"role": "user", "content": "What is my name?"},
     {"role": "assistant", "content": "I don't have enough information to answer that question."},
-    {"role": "user", "content": "What question did I just ask?"}
+    {"role": "user", "content": "What question did I just ask?"},
     {"role": "assistant", "content": "You asked about your name, but I don't know your name."},
     {"role": "user", "content": "My name is Bob. Answer the question."}
   ]
