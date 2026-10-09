@@ -420,5 +420,6 @@ Submit your repo url to canvas.
 
 The github actions need to pass on the `example-median` repo for full credit.
 Depending on how the LLM decided to fix the existing broken test case,
-you may need to do a few more rounds of fixing with the LLM.
+the tests might pass on the lambda server but fail in github actions.
+If that is the case, you can still get the model to fix the tests for you by copy/pasting the output from github actions into the llm's context window.
 
