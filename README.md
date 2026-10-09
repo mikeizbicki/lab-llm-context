@@ -30,9 +30,7 @@ $ pip3 install git+https://github.com/mikeizbicki/dic
 > Before the command above will install the latest version.
 
 You should also ensure that your groq API key is in the environment,
-set the default model to be groq with qwen,
-and set the temperature to be 0
-(which makes the model a bit more deterministic... but not fully deterministic... for complicated parallelism reasons...)
+and set the default model to be groq with qwen:
 ```
 $ export GROQ_API_KEY=...
 $ export DIC_MODEL=groq+qwen
