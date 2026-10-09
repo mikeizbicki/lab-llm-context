@@ -417,3 +417,8 @@ $ committe --mid=<> 'apply the fix'
 Create a new repo on github called `example-median`.
 Push your `committe`-fixed code to that new repo.
 Submit your repo url to canvas.
+
+The github actions need to pass on the `example-median` repo for full credit.
+Depending on how the LLM decided to fix the existing broken test case,
+you may need to do a few more rounds of fixing with the LLM.
+
