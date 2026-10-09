@@ -392,6 +392,9 @@ $ eval "$(dic --init)"
 > The command `dic --init` outputs a shell script that should be run on the command line and includes a number of useful aliases and functions, like `committe`.
 > The `eval` command runs all of the lines in the script.
 > `eval`ing an argument is the equivalent of `source`ing a file.
+> This is the standard idiom that python programs use to update shell settings.
+> For example, [pyenv](https://github.com/pyenv/pyenv) is an extension to `venv` that lets you manage multiple python version installations at once,
+> and the versions are controlled through a `eval "$(pyenv --init)"` command.
 
 This more robust version uses a more robust version of `git apply` (called `git-apply-fuzzy`) that can still successfully apply the patch file even if the LLM has made lots of errors in the diff.
 (Many students in the previous lab observed `committe` being a bit flaky due to these errors.)
