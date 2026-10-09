@@ -7,6 +7,7 @@ You will learn:
 1. how LLM APIs work under the hood,
 2. how almost all AI agents (including `dic`, `llm`, copilot, VSCode plugins, etc) use sqlite3 to store conversation histories, and
 3. how to manage these session histories to be more efficient.
+
 The lab focuses on using `dic`, but the techniques generalize to any agent you might use in the future.
 
 ## Setup
