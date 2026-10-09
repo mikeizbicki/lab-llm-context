@@ -1,0 +1,3 @@
+[submodule "example-median"]
+	path = example-median
+	url = https://github.com/mikeizbicki/example-median
