@@ -1,21 +1,11 @@
 # Lab: Managing LLM Context
 
-A chat model has no memory.
-
-Every time you "continue a conversation" with an LLM API, the client sends
-the *entire* conversation again, as an array of messages. The model does not
-remember the previous turn; it reads it a second time. Everything that makes
-a chat model feel like a conversation is therefore a property of that array:
-what is in it, who put it there, and what it cost.
-
-In this lab you will take that array apart by hand, watch `dic` build it for
-you, find it sitting in a sqlite table, discover that it is a *tree* and not
-a list, and then aim the whole apparatus at a broken python module in the
-`example-median` submodule.
-
-The rest of the course uses `dic`. If you have not done the `dic` lab yet,
-do that one first, or at least read it: this lab assumes you know what `-c`,
-`--mid`, `-m`, `-s` and `-x` do.
+This lab will get you more practice using `dic` effectively to work with AI.
+You will learn:
+1. how LLM APIs work under the hood,
+2. how almost all AI agents (including `dic`, `llm`, copilot, VSCode plugins, etc) use sqlite3 to store converesation historys, and
+3. how to manage these session histories to be more efficient.
+The lab focuses on using `dic`, but the techniques generalize to any agent you might use in the future.
 
 ## Setup
 
@@ -187,10 +177,11 @@ $ dic --print-body -c 'What is my name?'
 ```
 Observe that the json object now contains the previous conversation inside of it because we are using the `-c` flag to continue the conversation.
 
-Every round of `-c` re-sends the whole chain, so a `k`-turn thread ships
-roughly `k^2/2` turn-sized arrays in total: the cost of a conversation grows
-with the square of its length, not with its length. Turn three is cheap;
-turn fifty is not. This is the curve the tree in Part 4 exists to break.
+> **NOTE ON COSTS:**
+> Every round of `-c` re-sends the whole chain.
+> On the $k$th round of a conversation, we are sending $k-1$ messages,
+> so the total number of tokens used in a $k$ round conversation is $\Theta(k^2)$.
+> A 50 round conversation (even of short questions/replies) is therefore quite expensive.
 
 Actually sending the API request we get
 ```
@@ -258,20 +249,28 @@ The following query gives a summary of the runtimes of all llm providers that yo
 $ dic --stats
 ```
 
-`ms_ttft` measures prefill, not decode: it is the time before the first token
-appears, and prefill compares every token in the array against every other
-token. Time-to-first-token therefore grows with the array while per-token
-decode time stays roughly flat, so a long context makes a model feel slow at
-the start of a reply and not in the middle of it.
+> **NOTE:**
+> The quality of LLM providers is often measured by their *time to first token* (TTFT).
+> The average TTFT is shown in the table above,
+> and `dic` prints a TTFT counter on every query where the TTFT exceeds 0.5 seconds.
+> Due to the way parallelism in LLMs works,
+> the TTFT basically doesn't depend on the size of your input JSON.
+> The rate that tokens are generated, however, will shrink quadratically as the number of output tokens increases.
 
 
 ## Part 4: context is a tree
 
 `prev_mid` is a pointer, and two rows cannot share the same `prev_mid` forming a tree structure.
-Find the mid of the conversation you have been having:
+Let's rerun the conversation below to generate a new `--mid`.
+```
+$ dic 'What is my name?'
+$ dic -c 'My name is bob'
+$ dic -c 'What is my name?'
+<...> --mid=<mid>
+```
+Remember that last `--mid=<mid>` output.
 
-Now fork it in two directions:
-
+Now fork the conversation in two directions:
 ```
 $ dic --mid=<mid> 'I lied my name is Carl'
 <...> --mid=<mid1>
@@ -279,30 +278,82 @@ $ dic --mid=<mid> 'I lied my name is Denise'
 <...> --mid=<mid2>
 ```
 
-Both new rows have `prev_mid = $M`. You did not overwrite the conversation;
+Both new rows have `prev_mid = <mid>`.
+You did not overwrite the conversation;
 you grew a second branch off it, and the first one is still there.
+You can observer that by running the commands below.
 
 ```
 $ dic --mid=<mid1> 'What is my real name?'
 $ dic --mid=<mid2> 'What is my real name?'
 ```
+You should see "Carl" in the output of the first command and "Denise" in the output of the second.
 
-Compaction is not a flag; the tree *is* the mechanism. Ask the old thread to
-summarize itself (`dic -c 'summarize our decisions in 200 words.'`), then
-start a fresh root with `dic -s "$S" 'continue'`, where `$S` is that summary.
-The old chain is not deleted, and it stays one `--mid` away.
+Managing trees of conversations like this with AI agents is a key skill in controlling your context, no matter what AI system you are working with.
 
+<!--
+### Compaction
+
+Sometimes conversations get too large.
+*Compaction* is the process of shrinking those conversations.
+
+
+Reuse the Bob conversation from Part 2. First ask it to summarize itself:
+
+```
+$ dic -c 'summarize this conversation in one sentence.'
+The user's name is Bob.
+--mid=01K4Z9...
+```
+
+The response and the trailing `--mid=` line both go to stdout, so capture
+the summary by dropping that line:
+
+```
+$ S=$(dic -c 'summarize this conversation in one sentence.' | grep -v '^--mid=')
+$ echo "$S"
+The user's name is Bob.
+```
+
+Now start a fresh conversation with `-s`, which sets the system prompt:
+
+```
+$ dic -s "$S" 'What is my name?'
+Bob.
+```
+
+Compare the arrays the two approaches send:
+
+```
+$ dic --print-body -s "$S" 'What is my name?' | wc -c
+$ dic --print-body -c 'What is my name?' | wc -c
+```
+
+Both get the answer right; the second array has to re-read every round of
+the original conversation to do it, and it grows every time you add a turn.
+`-s` applies only when a conversation *starts*, so a default system prompt
+can never rewrite a thread that is already running.
+
+The old chain is not deleted. The summary is a message like any other, and
+the full conversation is still one `--mid` away.
+-->
 
 ## Part 5: commit on `example-median`
 
 Now the real thing.
 `example-median` is a small python module with a bug.
 
-First confirm the bug:
+First get the code
 ```
+$ git clone https://github.com/mikeizbicki/lab-llm-context
+$ cd lab-llm-context
+$ git submodule init
+$ git submodule update
 $ cd example-median
+```
+Then observe the bug
+```
 $ python3 -m pytest
-$ python3 -c 'import stats; print(stats.median([1,2,3,4]))'
 ```
 
 ### 5a: investigate with `dic`
@@ -317,89 +368,37 @@ Are there any bugs in this repo?
 EOF
 ```
 
-Now ask for the fix:
+Now go off on a tangent:
 ```
-$ dic -c 'What other python libraries could I use for the median besides this one?'
+$ dic -c 'Actually, I am doing research on different algorithms about the median.  Tell me alternative ways to compute the median in python. Write a long essay.'
 ```
+Continue this conversation for a few more rounds if needed so that groq is refusing your request due to the length.
 
 ### 5b: commit with `committe`
 
-`committe` is the coding agent you built in the previous lab. It reads the
-conversation, asks for a patch, and applies it:
-
+Recall that `committe` is the coding agent you built in the previous lab.
+If you would like, you can get a more robust version of the script by running the command
 ```
-$ committe -c 'apply that fix'
+$ source <(curl -s https://raw.githubusercontent.com/mikeizbicki/dic/refs/heads/master/scripts/committe.sh)
 ```
+This more robust version uses a more robust version of `git apply` (called `git-apply-fuzzy`) that can still successfully apply the patch file even if the LLM has made lots of errors in the diff.
+(Many students in the previous lab observed `committe` being a bit flaky due to these errors.)
+It also has additional sanity checks like refusing to run if the git repo is not clean.
 
-<!--
-### 5c: fork at `M`
-
-Here is what the tree is for. Go back to the mid you saved and ask for the
-fix a second way:
-
+Our goal now it actually make a commit that fixes the bug.
+We can't just continue our conversation from before,
+because our messages list is too long for groq.
+The following will fail:
 ```
-$ dic --mid=$M 'fix using statistics.median'
-$ dic --mid=$M 'fix without importing anything'
-```
-
-Two branches, two different fixes, both rooted at the same investigation.
-Write each patch out with `--path`, or let `committe -c 'apply'` stage each
-on its own branch, and run the tests against each:
-
-```
-$ python3 -m pytest
+$ committe -c 'apply the fix'
 ```
 
+But if we "go back in time" to before our tangent, we can get the commit to succeed:
 ```
-$ dic --log --graph
+$ committe --mid=<> 'apply the fix'
 ```
-
-shows the fork. Keep the winner, discard the other, or don't: the losing
-branch is not deleted, and it is one `--mid` away if you change your mind.
-*This* is why the tree exists.
-
-### 5d: a parallel session
-
-Open a second terminal and export a different session name:
-
-```
-$ export DIC_SESSION=fixB
-```
-
-Redo the investigation from scratch. You will get a different patch, because
-the model is nondeterministic and the context is different, and because
-neither of you is looking at the other's array.
-
-Now compare what the two attempts cost:
-
-```
-$ dic --cost-session fix
-$ dic --cost-session fixB
-$ dic --cost-tree fix
-```
-
-The `session` column is what makes that one query per attempt, and
-`--cost-tree` breaks the subtree down session by session.
-
 ## Submission
 
-In the `example-median` submodule, push three branches:
-
-- `fix`, branched from `master`, containing the fix you kept
-- `fork-a`, the first alternative fix
-- `fork-b`, the second alternative fix
-
-Also submit:
-
-- `$(git rev-parse --git-dir)/committe-patchfile` from the winning commit
-- one line of `dic --stats`
-
-> **BONUS:**
-> `dic --log --graph --session fix` for the whole run, rendered as an image.
-> `--graph` already emits the columns; graphviz draws them.
-
-> **NOTE:**
-> Finish by running `python3 -m pytest` in `example-median` from a clean
-> checkout of your `fix` branch. A patch file is worth nothing if it does
-> not apply to the branch it names.
--->
+Create a new repo on github called `example-median`.
+Push your `committe`-fixed code to that new repo.
+Submit your repo url to canvas.
