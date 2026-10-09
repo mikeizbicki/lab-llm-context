@@ -294,14 +294,13 @@ Give the model the whole repo, then ask:
 ```
 $ dic <<EOF
 $(files-to-prompt . .github)
-Which test is failing and why? Answer in one sentence.
+Are there any bugs in this repo?
 EOF
 ```
 
 Now ask for the fix:
-
 ```
-$ dic -c 'How should I fix it?'
+$ dic -c 'What other python libraries could I use for the median besides this one?'
 ```
 
 ### 5b: commit with `committe`
