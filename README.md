@@ -186,6 +186,12 @@ plus your new words: the same splice you did by hand.
 $ dic --print-body -c 'What is my name?'
 ```
 Observe that the json object now contains the previous conversation inside of it because we are using the `-c` flag to continue the conversation.
+
+Every round of `-c` re-sends the whole chain, so a `k`-turn thread ships
+roughly `k^2/2` turn-sized arrays in total: the cost of a conversation grows
+with the square of its length, not with its length. Turn three is cheap;
+turn fifty is not. This is the curve the tree in Part 4 exists to break.
+
 Actually sending the API request we get
 ```
 $ dic -c 'What is my name?'
@@ -252,6 +258,13 @@ The following query gives a summary of the runtimes of all llm providers that yo
 $ dic --stats
 ```
 
+`ms_ttft` measures prefill, not decode: it is the time before the first token
+appears, and prefill compares every token in the array against every other
+token. Time-to-first-token therefore grows with the array while per-token
+decode time stays roughly flat, so a long context makes a model feel slow at
+the start of a reply and not in the middle of it.
+
+
 ## Part 4: context is a tree
 
 `prev_mid` is a pointer, and two rows cannot share the same `prev_mid` forming a tree structure.
@@ -273,6 +286,12 @@ you grew a second branch off it, and the first one is still there.
 $ dic --mid=<mid1> 'What is my real name?'
 $ dic --mid=<mid2> 'What is my real name?'
 ```
+
+Compaction is not a flag; the tree *is* the mechanism. Ask the old thread to
+summarize itself (`dic -c 'summarize our decisions in 200 words.'`), then
+start a fresh root with `dic -s "$S" 'continue'`, where `$S` is that summary.
+The old chain is not deleted, and it stays one `--mid` away.
+
 
 ## Part 5: commit on `example-median`
 
